@@ -241,8 +241,11 @@ def parse_text(text, year, month):
     # 修正海平面气压
     qnhstr = get_field_text('qnh', no_trend_text)
     if qnhstr:
-        qnh = int(qnhstr[1:])  # 清除0值补位
-        dataset['qnh'] = qnh
+        if qnhstr.startswith('Q'):
+            qnh = int(qnhstr[1:])  # 清除0值补位
+        elif qnhstr.startswith('A'): 
+            qnh = int(int(qnhstr[1:]) * 33.8638)  # inHg -> hPa
+            dataset['qnh'] = qnh
     else:
         dataset['qnh'] = None
 
