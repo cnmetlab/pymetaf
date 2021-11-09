@@ -12,7 +12,7 @@ with open(requirements_path) as f:
 
 setuptools.setup(
     name='pymetaf',
-    version='0.1.2',
+    version='0.1.3',
     author='Wentao Li',
     author_email='wentao.li@moji.com',
     description='A python package for parsing metar & taf raw text',
