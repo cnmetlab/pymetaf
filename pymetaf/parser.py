@@ -56,7 +56,9 @@ FIELD_PATTERNS = {
     # 修复预报标识
     'amend':            r'AMD',
     # 预报温度
-    'txtn':             r'TXM?\d+/M?\d+Z\sTNM?\d+/M?\d+Z'
+    'txtn':             r'TXM?\d+/M?\d+Z\sTNM?\d+/M?\d+Z',
+    # 取消报
+    'nil':              r'NIL'
 }
 
 
@@ -159,6 +161,11 @@ def parse_text(text, year, month):
 
     no_trend_text = get_field_text('observ', text)
 
+    # 若包含NIL则返回空
+    nil = get_field_text('nil', no_trend_text)
+    if nil:
+        return None
+
     # 风向风速
     windstr = get_field_text('wind', no_trend_text)
     wind_items = windstr.split(' ')
@@ -241,7 +248,11 @@ def parse_text(text, year, month):
     # 修正海平面气压
     qnhstr = get_field_text('qnh', no_trend_text)
     if qnhstr:
-        qnh = int(qnhstr[1:])  # 清除0值补位
+        if qnhstr.startswith('Q'):
+            qnh = int(qnhstr[1:])  # 清除0值补位
+        elif qnhstr.startswith('A'):
+            qnh = int(int(qnhstr[1:]) * 33.8638)  # inHg -> hPa
+
         dataset['qnh'] = qnh
     else:
         dataset['qnh'] = None

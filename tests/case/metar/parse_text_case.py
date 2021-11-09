@@ -407,4 +407,12 @@ PARSE_TEXT_CASE = [{
         ],
         'weather': None
     }
+},{
+    'kwargs': {
+        'text':
+        'METAR RCMQ 080500Z NIL',
+        'year': 2021,
+        'month': 10
+    },
+    'result': None
 }]
