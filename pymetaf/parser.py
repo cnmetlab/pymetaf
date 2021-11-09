@@ -168,39 +168,44 @@ def parse_text(text, year, month):
 
     # 风向风速
     windstr = get_field_text('wind', no_trend_text)
-    wind_items = windstr.split(' ')
+    if windstr:
+        wind_items = windstr.split(' ')
+        # wdws: 风向风速
+        wdws = wind_items[0]
+        if len(wind_items) > 1:
+            wdrg_str = wind_items[1]  # wdrg: 风向范围，该字段很少出现
+            dir1 = int(wdrg_str[:3])
+            dir2 = int(wdrg_str[4:])
+            wdrg = (dir1, dir2)
+        else:
+            wdrg = None
+        wd_str = wdws[:3]    # 风向
+        if wd_str == 'VRB':
+            wd = None
+        elif wd_str.isdigit():
+            wd = int(wd_str)
 
-    # wdws: 风向风速
-    wdws = wind_items[0]
-    if len(wind_items) > 1:
-        wdrg_str = wind_items[1]  # wdrg: 风向范围，该字段很少出现
-        dir1 = int(wdrg_str[:3])
-        dir2 = int(wdrg_str[4:])
-        wdrg = (dir1, dir2)
+        ws = int(wdws[3:5])   # 风速
+        if wdws[5] == 'G':
+            # 带有阵风的示例：METAR ZBXH 250700Z 25008G13MPS 9999 FEW040 13/M18 Q1015 NOSIG
+            gust = int(wdws[6:8])   # 阵风
+            unit = wdws[8:]    # 阵风单位
+        else:
+            gust = None
+            unit = wdws[5:]
+
+        if unit == 'KT':
+            # 以KT作为风速单位的示例：METAR VHHH 250630Z 30009KT 270V340 9999 FEW022 26/16 Q1015 NOSIG
+            # 将knots转为m/s
+            if ws:
+                ws = int(int(ws) * 0.5144444)
+            if gust:
+                gust = int(int(gust) * 0.5144444)
     else:
-        wdrg = None
-    wd_str = wdws[:3]    # 风向
-    if wd_str == 'VRB':
         wd = None
-    elif wd_str.isdigit():
-        wd = int(wd_str)
-
-    ws = int(wdws[3:5])   # 风速
-    if wdws[5] == 'G':
-        # 带有阵风的示例：METAR ZBXH 250700Z 25008G13MPS 9999 FEW040 13/M18 Q1015 NOSIG
-        gust = int(wdws[6:8])   # 阵风
-        unit = wdws[8:]    # 阵风单位
-    else:
+        ws = None
         gust = None
-        unit = wdws[5:]
-
-    if unit == 'KT':
-        # 以KT作为风速单位的示例：METAR VHHH 250630Z 30009KT 270V340 9999 FEW022 26/16 Q1015 NOSIG
-        # 将knots转为m/s
-        if ws:
-            ws = int(int(ws) * 0.5144444)
-        if gust:
-            gust = int(int(gust) * 0.5144444)
+        wdrg = None
 
     dataset['wind_direction'] = wd
     dataset['wind_direction_units'] = 'degree'
@@ -208,6 +213,13 @@ def parse_text(text, year, month):
     dataset['wind_speed_units'] = 'm/s'
     dataset['gust'] = gust
     dataset['wind_direction_range'] = wdrg
+
+    # 好天气（CAVOK）
+    cavok = get_field_text('cavok', no_trend_text)
+    if cavok:
+        dataset['cavok'] = True
+    else:
+        dataset['cavok'] = False
 
     # 能见度字段
     visstr = get_field_text('vis', no_trend_text)
@@ -218,18 +230,13 @@ def parse_text(text, year, month):
             dataset['visibility'] = 50
         else:
             dataset['visibility'] = int(visstr)
-    else:
+    elif cavok:
         # CAVOK 设为 99999
         dataset['visibility'] = 99999
+    else:
+        dataset['visibility'] = None
 
     dataset['visibility_units'] = 'm'
-
-    # 好天气（CAVOK）
-    cavok = get_field_text('cavok', no_trend_text)
-    if cavok:
-        dataset['cavok'] = True
-    else:
-        dataset['cavok'] = False
 
     # 温度/露点
     tempstr = get_field_text('temp/dew', no_trend_text)
