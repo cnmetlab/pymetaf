@@ -415,4 +415,33 @@ PARSE_TEXT_CASE = [{
         'month': 10
     },
     'result': None
+},{
+    'kwargs': {
+        'text':
+        'METAR ZYQQ 081700Z AUTO /////MPS //// // ////// M05/M07 Q1006',
+        'year': 2021,
+        'month': 11
+    },
+    'result': {
+        'kind': 'METAR',
+        'icao': 'ZYQQ',
+        'auto': True,
+        'datetime': '2021-11-08T17:00:00+00:00',
+        'wind_direction': None,
+        'wind_direction_units': 'degree',
+        'wind_speed': None,
+        'wind_speed_units': 'm/s',
+        'gust': None,
+        'wind_direction_range': None,
+        'visibility': None,
+        'visibility_units': 'm',
+        'cavok': False,
+        'temperature': -5,
+        'dew_temperature': -7,
+        'temperature_units': 'degree C',
+        'qnh': 1006,
+        'qnh_units': 'hPa',
+        'cloud': None,
+        'weather': None
+    }
 }]

@@ -1,4 +1,4 @@
-from pymetaf.parser import (
+from pymetaf import (
     parse_text,
     get_field_text
 )
