@@ -4,13 +4,14 @@ This is a python package to parse raw METAR and TAF report text.
 
 ## Installation
 
-1. Clone this repository and run `$ python setup.py install` in your termenal.
-2. Use Pip `pip install pymetaf`
+1. Clone this repository and run `$ python setup.py install` in your terminal.
+2. Use Pip `$ pip install pymetaf`
 
 ## Usage
 
 ```python
->>> from pymetaf.parser import parse_text
+>>> from pymetaf import parse_text
+
 >>> text = 'METAR ZYAS 250500Z 21009G14MPS 6000 NSC 18/08 Q1018 NOSIG'
 
 >>> parse_text(text, 2021, 5)
