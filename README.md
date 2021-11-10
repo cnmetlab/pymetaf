@@ -1,5 +1,9 @@
 # pymetaf
 
+[![Build Status](https://app.travis-ci.com/Clarmy/pymetaf.svg?branch=main)](https://app.travis-ci.com/github/Clarmy/pymetaf)
+[![PyPI version](https://badge.fury.io/py/pymetaf.svg)](https://badge.fury.io/py/pymetaf)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/Clarmy/pymetaf/issues)
+
 This is a python package to parse raw METAR and TAF report text.
 
 ## Installation
