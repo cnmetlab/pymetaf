@@ -138,6 +138,48 @@ def get_field_text(field, text, mod="first"):
     return result
 
 
+def get_weather_description(code):
+    intensity = ""
+    if code.startswith("+"):
+        intensity = "Heavy "
+        code = code[1:]
+    elif code.startswith("-"):
+        intensity = "Light "
+        code = code[1:]
+
+    weather_codes = {
+        "DZ": "Drizzle",
+        "RA": "Rain",
+        "SN": "Snow",
+        "SG": "Snow Grains",
+        "IC": "Ice Crystals",
+        "PL": "Ice Pellets",
+        "GR": "Hail",
+        "GS": "Small Hail or Snow Pellets",
+        "UP": "Unknown Precipitation",
+        "BR": "Mist",
+        "FG": "Fog",
+        "FU": "Smoke",
+        "VA": "Volcanic Ash",
+        "DU": "Widespread Dust",
+        "SA": "Sand",
+        "HZ": "Haze",
+        "PY": "Spray",
+        "PO": "Dust/Sand Whirls",
+        "SQ": "Squalls",
+        "FC": "Funnel Cloud",
+        "SS": "Sandstorm",
+        "DS": "Duststorm",
+        "SHRA": "Rain Showers",
+        "TSRA": "Thunderstorm with Rain",
+        "TS": "Thunderstorm",
+    }
+
+    pure_weather = weather_codes.get(code)
+    if pure_weather is not None:
+        return intensity + pure_weather
+
+
 def parse_text(text, year, month):
     """Parse message text
 
@@ -177,7 +219,9 @@ def parse_text(text, year, month):
         # wdws: wind direction and speed
         wdws = wind_items[0]
         if len(wind_items) > 1:
-            wdrg_str = wind_items[1]  # wdrg: wind direction range, this field rarely appears
+            wdrg_str = wind_items[
+                1
+            ]  # wdrg: wind direction range, this field rarely appears
             dir1 = int(wdrg_str[:3])
             dir2 = int(wdrg_str[4:])
             wdrg = (dir1, dir2)
@@ -228,7 +272,9 @@ def parse_text(text, year, month):
     visstr = get_field_text("vis", no_trend_text)
     if visstr:
         if visstr == "9999":
-            dataset["visibility"] = 99999  # Represent visibility greater than 10000 as 99999
+            dataset[
+                "visibility"
+            ] = 99999  # Represent visibility greater than 10000 as 99999
         elif visstr == "0000":
             dataset["visibility"] = 50
         else:
@@ -306,7 +352,19 @@ def parse_text(text, year, month):
     dataset["cloud"] = cloudgroups
 
     # Weather phenomena
-    dataset["weather"] = get_field_text("weather", no_trend_text, mod="all")
+    weather_codes = get_field_text("weather", no_trend_text, mod="all")
+    if weather_codes is not None:
+        weather_descriptions = []
+        for code in weather_codes:
+            weather_descriptions.append(get_weather_description(code))
+
+        dataset["weather"] = weather_descriptions
+    else:
+        if cloudgroups is None:
+            dataset["weather"] = ["Clear Sky"]
+        else:
+            dataset["weather"] = ["Cloudy"]
+
     if get_field_text("auto", no_trend_text):
         dataset["auto"] = True
     else:

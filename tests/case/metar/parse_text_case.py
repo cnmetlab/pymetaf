@@ -25,7 +25,7 @@ PARSE_TEXT_CASE = [
             "qnh": 1009,
             "qnh_units": "hPa",
             "cloud": None,
-            "weather": None,
+            "weather": ["Clear Sky"],
         },
     },
     {
@@ -61,7 +61,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 }
             ],
-            "weather": ["-SHRA"],
+            "weather": ["Light Rain Showers"],
         },
     },
     {
@@ -97,7 +97,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 }
             ],
-            "weather": None,
+            "weather": ["Cloudy"],
         },
     },
     {
@@ -133,7 +133,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 }
             ],
-            "weather": ["-SHRA"],
+            "weather": ["Light Rain Showers"],
         },
     },
     {
@@ -169,7 +169,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": "cumulonimbus",
                 }
             ],
-            "weather": ["TS", "BR"],
+            "weather": ["Thunderstorm", "Mist"],
         },
     },
     {
@@ -211,7 +211,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": "cumulonimbus",
                 },
             ],
-            "weather": ["-TSRA"],
+            "weather": ["Light Thunderstorm with Rain"],
         },
     },
     {
@@ -253,7 +253,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": "cumulonimbus",
                 },
             ],
-            "weather": ["-TSRA"],
+            "weather": ["Light Thunderstorm with Rain"],
         },
     },
     {
@@ -282,7 +282,7 @@ PARSE_TEXT_CASE = [
             "qnh": 1008,
             "qnh_units": "hPa",
             "cloud": None,
-            "weather": None,
+            "weather": ["Clear Sky"],
         },
     },
     {
@@ -311,7 +311,7 @@ PARSE_TEXT_CASE = [
             "qnh": 1008,
             "qnh_units": "hPa",
             "cloud": None,
-            "weather": None,
+            "weather": ["Clear Sky"],
         },
     },
     {
@@ -359,7 +359,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 },
             ],
-            "weather": ["SHRA", "BR"],
+            "weather": ["Rain Showers", "Mist"],
         },
     },
     {
@@ -407,7 +407,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 },
             ],
-            "weather": None,
+            "weather": ["Cloudy"],
         },
     },
     {
@@ -455,7 +455,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 },
             ],
-            "weather": ["SHRA", "BR"],
+            "weather": ["Rain Showers", "Mist"],
         },
     },
     {
@@ -491,7 +491,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 }
             ],
-            "weather": None,
+            "weather": ["Cloudy"],
         },
     },
     {
@@ -524,7 +524,7 @@ PARSE_TEXT_CASE = [
             "qnh": 1006,
             "qnh_units": "hPa",
             "cloud": None,
-            "weather": None,
+            "weather": ["Clear Sky"],
         },
     },
 ]
