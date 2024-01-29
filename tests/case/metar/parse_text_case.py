@@ -61,7 +61,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 }
             ],
-            "weather": ["Light Rain Showers"],
+            "weather": ['Light Showers of Rain'],
         },
     },
     {
@@ -133,7 +133,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 }
             ],
-            "weather": ["Light Rain Showers"],
+            "weather": ["Light Showers of Rain"],
         },
     },
     {
@@ -211,7 +211,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": "cumulonimbus",
                 },
             ],
-            "weather": ["Light Thunderstorm with Rain"],
+            "weather": ["Light Thunderstorm Rain"],
         },
     },
     {
@@ -253,7 +253,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": "cumulonimbus",
                 },
             ],
-            "weather": ["Light Thunderstorm with Rain"],
+            "weather": ["Light Thunderstorm Rain"],
         },
     },
     {
@@ -359,7 +359,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 },
             ],
-            "weather": ["Rain Showers", "Mist"],
+            "weather": ["Showers of Rain", "Mist"],
         },
     },
     {
@@ -455,7 +455,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 },
             ],
-            "weather": ["Rain Showers", "Mist"],
+            "weather": ["Showers of Rain", "Mist"],
         },
     },
     {

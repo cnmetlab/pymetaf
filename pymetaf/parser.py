@@ -170,15 +170,21 @@ def get_weather_description(code):
         "FC": "Funnel Cloud",
         "SS": "Sandstorm",
         "DS": "Duststorm",
-        "SHRA": "Rain Showers",
-        "TSRA": "Thunderstorm with Rain",
+        "SH": "Showers of",
         "TS": "Thunderstorm",
     }
 
-    pure_weather = weather_codes.get(code)
-    if pure_weather is not None:
-        return intensity + pure_weather
+    description = ""
+    while len(code) > 0:
+        for key in weather_codes.keys():
+            if code.startswith(key):
+                description += weather_codes[key] + " "
+                code = code[len(key):]
+                break
 
+    return intensity + description.strip()
+
+print(get_weather_description("-SHSN"))  # Output: Light Showers of Snow
 
 def parse_text(text, year, month):
     """Parse message text
