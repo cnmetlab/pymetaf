@@ -179,12 +179,11 @@ def get_weather_description(code):
         for key in weather_codes.keys():
             if code.startswith(key):
                 description += weather_codes[key] + " "
-                code = code[len(key):]
+                code = code[len(key) :]
                 break
 
     return intensity + description.strip()
 
-print(get_weather_description("-SHSN"))  # Output: Light Showers of Snow
 
 def parse_text(text, year, month):
     """Parse message text
@@ -323,6 +322,15 @@ def parse_text(text, year, month):
 
     # Cloud amount/height
     cloudstrs = get_field_text("cloud", no_trend_text, mod="all")
+    CLOUD_MASK = {
+        "FEW": round(2 / 8, 2),
+        "SCT": round(4 / 8, 2),
+        "BKN": round(6 / 8, 2),
+        "OVC": round(8 / 8, 2),
+        "SKC": 0,
+        "NSC": 0,
+        "///": 0,
+    }
     if cloudstrs:
         cloudstrs = sorted(cloudstrs)
         cloudgroups = []
@@ -345,8 +353,9 @@ def parse_text(text, year, month):
                 # Example with cloud height: METAR ZBDS 250000Z 29003MPS 9999 FEW040 04/M08 Q1023 NOSIG
                 height = int(cloudstr[3:]) * 20
             mask = cloudstr[:3]
+
             cloud_record = {
-                "cloud_mask": mask,
+                "cloud_mask": CLOUD_MASK[mask],
                 "cloud_height": height,
                 "cloud_height_units": "m",
                 "cloud_type": cloud_type,
@@ -370,6 +379,15 @@ def parse_text(text, year, month):
             dataset["weather"] = ["Clear Sky"]
         else:
             dataset["weather"] = ["Cloudy"]
+
+        if cloudgroups is not None:
+            for cloudgroup in cloudgroups:
+                if cloudgroup["cloud_mask"] == 0:
+                    dataset["weather"] = ["Clear Sky"]
+                elif 0 < cloudgroup["cloud_mask"] < 1:
+                    dataset["weather"] = ["Cloudy"]
+                elif cloudgroup["cloud_mask"] == 1:
+                    dataset["weather"] = ["Overcast"]
 
     if get_field_text("auto", no_trend_text):
         dataset["auto"] = True

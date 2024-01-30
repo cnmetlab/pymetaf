@@ -57,7 +57,7 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": None,
                     "cloud_height_units": "m",
-                    "cloud_mask": "NSC",
+                    "cloud_mask": 0,
                     "cloud_type": None,
                 }
             ],
@@ -93,11 +93,11 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": None,
                     "cloud_height_units": "m",
-                    "cloud_mask": "NSC",
+                    "cloud_mask": 0,
                     "cloud_type": None,
                 }
             ],
-            "weather": ["Cloudy"],
+            "weather": ["Clear Sky"],
         },
     },
     {
@@ -129,7 +129,7 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": None,
                     "cloud_height_units": "m",
-                    "cloud_mask": "NSC",
+                    "cloud_mask": 0,
                     "cloud_type": None,
                 }
             ],
@@ -165,7 +165,7 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": 800,
                     "cloud_height_units": "m",
-                    "cloud_mask": "FEW",
+                    "cloud_mask": 0.25,
                     "cloud_type": "cumulonimbus",
                 }
             ],
@@ -201,13 +201,13 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": 920,
                     "cloud_height_units": "m",
-                    "cloud_mask": "BKN",
+                    "cloud_mask": 0.75,
                     "cloud_type": None,
                 },
                 {
                     "cloud_height": 600,
                     "cloud_height_units": "m",
-                    "cloud_mask": "SCT",
+                    "cloud_mask": 0.5,
                     "cloud_type": "cumulonimbus",
                 },
             ],
@@ -243,13 +243,13 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": 920,
                     "cloud_height_units": "m",
-                    "cloud_mask": "BKN",
+                    "cloud_mask": 0.75,
                     "cloud_type": None,
                 },
                 {
                     "cloud_height": 600,
                     "cloud_height_units": "m",
-                    "cloud_mask": "SCT",
+                    "cloud_mask": 0.5,
                     "cloud_type": "cumulonimbus",
                 },
             ],
@@ -343,19 +343,19 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": 120,
                     "cloud_height_units": "m",
-                    "cloud_mask": "FEW",
+                    "cloud_mask": 0.25,
                     "cloud_type": None,
                 },
                 {
                     "cloud_height": 520,
                     "cloud_height_units": "m",
-                    "cloud_mask": "FEW",
+                    "cloud_mask": 0.25,
                     "cloud_type": "cumulonimbus",
                 },
                 {
                     "cloud_height": 520,
                     "cloud_height_units": "m",
-                    "cloud_mask": "SCT",
+                    "cloud_mask": 0.5,
                     "cloud_type": None,
                 },
             ],
@@ -391,19 +391,19 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": 120,
                     "cloud_height_units": "m",
-                    "cloud_mask": "FEW",
+                    "cloud_mask": 0.25,
                     "cloud_type": None,
                 },
                 {
                     "cloud_height": 520,
                     "cloud_height_units": "m",
-                    "cloud_mask": "FEW",
+                    "cloud_mask": 0.25,
                     "cloud_type": "altocumulus",
                 },
                 {
                     "cloud_height": 520,
                     "cloud_height_units": "m",
-                    "cloud_mask": "SCT",
+                    "cloud_mask": 0.5,
                     "cloud_type": None,
                 },
             ],
@@ -439,19 +439,19 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": 120,
                     "cloud_height_units": "m",
-                    "cloud_mask": "BKN",
+                    "cloud_mask": 0.75,
                     "cloud_type": None,
                 },
                 {
                     "cloud_height": 400,
                     "cloud_height_units": "m",
-                    "cloud_mask": "OVC",
+                    "cloud_mask": 1,
                     "cloud_type": None,
                 },
                 {
                     "cloud_height": 60,
                     "cloud_height_units": "m",
-                    "cloud_mask": "SCT",
+                    "cloud_mask": 0.5,
                     "cloud_type": None,
                 },
             ],
@@ -487,11 +487,11 @@ PARSE_TEXT_CASE = [
                 {
                     "cloud_height": None,
                     "cloud_height_units": "m",
-                    "cloud_mask": "NSC",
+                    "cloud_mask": 0,
                     "cloud_type": None,
                 }
             ],
-            "weather": ["Cloudy"],
+            "weather": ["Clear Sky"],
         },
     },
     {
