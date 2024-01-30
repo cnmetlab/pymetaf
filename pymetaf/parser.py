@@ -32,7 +32,7 @@ FIELD_PATTERNS = {
     # Vertical visibility
     "vvis": r"VV\d{3}",
     # Visibility
-    "vis": r"(?<=\s)\d{4}[A-Z]*\b",
+    "vis": r"\b(\d{1,2}SM|\d{4})\b(?!/)",
     # Cloud amount and height (cloud type)
     "cloud": r"(FEW|SCT|BKN|OVC|SKC|NSC)(\d{3})?([A-Za-z]*)?",
     # Weather phenomena
@@ -62,6 +62,13 @@ FIELD_PATTERNS = {
     # Cancel report indicator
     "nil": r"NIL",
 }
+
+
+def miles_to_meters(miles):
+    conversion_factor = 1609.34
+    meters = miles * conversion_factor
+
+    return meters
 
 
 def get_field_text(field, text, mod="first"):
@@ -282,6 +289,12 @@ def parse_text(text, year, month):
             ] = 99999  # Represent visibility greater than 10000 as 99999
         elif visstr == "0000":
             dataset["visibility"] = 50
+        elif visstr.endswith("SM"):
+            # Convert statute miles to meters
+            visstr = visstr[:-2]
+            vis = float(visstr)
+            vis = miles_to_meters(vis)
+            dataset["visibility"] = int(vis)
         else:
             dataset["visibility"] = int(visstr)
     elif cavok:
