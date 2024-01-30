@@ -28,19 +28,19 @@ This is a python package to parse raw METAR and TAF report text.
  'wind_speed_units': 'm/s',
  'gust': 14,
  'wind_direction_range': None,
+ 'cavok': False,
  'visibility': 6000,
  'visibility_units': 'm',
- 'cavok': False,
  'temperature': 18,
  'dew_temperature': 8,
  'temperature_units': 'degree C',
  'qnh': 1018,
  'qnh_units': 'hPa',
- 'cloud': [{'cloud_mask': 'NSC',
+ 'cloud': [{'cloud_mask': 0,
    'cloud_height': None,
    'cloud_height_units': 'm',
    'cloud_type': None}],
- 'weather': None,
+ 'weather': ['Clear Sky'],
  'auto': False}
 ```
 
