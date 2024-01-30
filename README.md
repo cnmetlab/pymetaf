@@ -1,6 +1,6 @@
 # pymetaf
 
-[![Build Status](https://app.travis-ci.com/Clarmy/pymetaf.svg?branch=main)](https://app.travis-ci.com/github/Clarmy/pymetaf)
+[![Python package](https://github.com/cnmetlab/pymetaf/actions/workflows/python-package.yml/badge.svg)](https://github.com/cnmetlab/pymetaf/actions/workflows/python-package.yml)
 [![PyPI version](https://badge.fury.io/py/pymetaf.svg)](https://badge.fury.io/py/pymetaf)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/Clarmy/pymetaf/issues)
 
