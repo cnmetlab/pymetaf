@@ -179,6 +179,12 @@ def get_weather_description(code):
         "DS": "Duststorm",
         "SH": "Showers of",
         "TS": "Thunderstorm",
+        "BL": "Blowing",
+        "MI": "Shallow",
+        "BC": "Patches",
+        "PR": "Partial",
+        "DR": "Low Drifting",
+        "FZ": "Freezing",
     }
 
     description = ""
@@ -186,7 +192,7 @@ def get_weather_description(code):
         for key in weather_codes.keys():
             if code.startswith(key):
                 description += weather_codes[key] + " "
-                code = code[len(key) :]
+                code = code[len(key):]
                 break
 
     return intensity + description.strip()
