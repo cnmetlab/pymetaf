@@ -254,12 +254,12 @@ def parse_text(text, year, month):
             wd = int(wd_str)
 
         ws = int(wdws[3:5])  # wind speed
-        
+
         # If wind speed is 0 and wind direction is 000, this is calm wind (静风)
         # In this case, wind direction should be None
         if ws == 0 and wd_str == "000":
             wd = None
-        
+
         if wdws[5] == "G":
             # Example with gust: METAR ZBXH 250700Z 25008G13MPS 9999 FEW040 13/M18 Q1015 NOSIG
             gust = int(wdws[6:8])  # gust
@@ -298,9 +298,9 @@ def parse_text(text, year, month):
     visstr = get_field_text("vis", no_trend_text)
     if visstr:
         if visstr == "9999":
-            dataset[
-                "visibility"
-            ] = 99999  # Represent visibility greater than 10000 as 99999
+            dataset["visibility"] = (
+                99999  # Represent visibility greater than 10000 as 99999
+            )
         elif visstr == "0000":
             dataset["visibility"] = 50
         elif visstr.endswith("SM"):
