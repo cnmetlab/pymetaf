@@ -10,11 +10,19 @@ requirements_path = os.path.join(FILE_PATH, "requirements.txt")
 with open(requirements_path) as f:
     required = f.read().splitlines()
 
+# 从 pymetaf/__init__.py 读取版本号
+version = {}
+with open(os.path.join(FILE_PATH, "pymetaf", "__init__.py")) as f:
+    for line in f:
+        if line.startswith("__version__"):
+            exec(line, version)
+            break
+
 setuptools.setup(
     name="pymetaf",
-    version="1.0.3",
+    version=version["__version__"],
     author="Wentao Li",
-    author_email="wentao.li@moji.com",
+    author_email="clarmyleewt@outlook.com",
     description="A python package for parsing metar & taf raw text",
     long_description=long_description,
     long_description_content_type="text/markdown",
