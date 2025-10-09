@@ -154,6 +154,9 @@ def get_weather_description(code):
         intensity = "Light "
         code = code[1:]
 
+    # Precipitation types that can follow descriptors like SH
+    precipitation_types = ["DZ", "RA", "SN", "SG", "IC", "PL", "GR", "GS"]
+    
     weather_codes = {
         "DZ": "Drizzle",
         "RA": "Rain",
@@ -177,7 +180,7 @@ def get_weather_description(code):
         "FC": "Funnel Cloud",
         "SS": "Sandstorm",
         "DS": "Duststorm",
-        "SH": "Showers of",
+        "SH": "Showers",
         "TS": "Thunderstorm",
         "BL": "Blowing",
         "MI": "Shallow",
@@ -190,12 +193,29 @@ def get_weather_description(code):
     }
 
     description = ""
-    while len(code) > 0:
+    remaining_code = code
+    while len(remaining_code) > 0:
+        matched = False
         for key in weather_codes.keys():
-            if code.startswith(key):
-                description += weather_codes[key] + " "
-                code = code[len(key) :]
+            if remaining_code.startswith(key):
+                # Special handling for SH: add "of" only if followed by precipitation
+                if key == "SH":
+                    # Check if next part is a precipitation type
+                    rest_of_code = remaining_code[len(key):]
+                    has_precipitation = any(rest_of_code.startswith(pt) for pt in precipitation_types)
+                    if has_precipitation:
+                        description += "Showers of "
+                    else:
+                        description += "Showers "
+                else:
+                    description += weather_codes[key] + " "
+                remaining_code = remaining_code[len(key):]
+                matched = True
                 break
+        
+        # If no match found, skip this character to avoid infinite loop
+        if not matched:
+            remaining_code = remaining_code[1:]
 
     return intensity + description.strip()
 
