@@ -629,7 +629,7 @@ PARSE_TEXT_CASE = [
                     "cloud_type": None,
                 },
             ],
-            "weather": ["In the Vicinity Showers of"],
+            "weather": ["In the Vicinity Showers"],
             "auto": False,
         },
     },
