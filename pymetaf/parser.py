@@ -49,8 +49,8 @@ FIELD_PATTERNS = {
     "trend": r"(TEMPO|BECMG|NOSIG).*?(?= TEMPO| BECMG| NOSIG|=)",
     # Change start and end time
     "vartime": r"(FM|TL|AT)\d{4}",
-    # Current observation
-    "observ": r"(METAR|SPECI|TAF).*?(?= TEMPO| BECMG| NOSIG)",
+    # Current observation (stop before TEMPO/BECMG/NOSIG/RMK to avoid parsing remarks)
+    "observ": r"(METAR|SPECI|TAF).*?(?= TEMPO| BECMG| NOSIG| RMK)",
     # Forecast valid time
     "validtime": r"\b\d{6}\b",
     # Forecast cancellation indicator
@@ -66,18 +66,18 @@ FIELD_PATTERNS = {
 
 def validate_metar(text, strict_mode=False):
     """Validate METAR message format
-    
+
     Args:
         text (str): The original METAR message text to validate
         strict_mode (bool): Whether to use strict mode.
                            True: RMK remarks section not allowed
                            False: Allow RMK remarks but check their validity
-        
+
     Returns:
         tuple: (is_valid, error_message)
             is_valid (bool): Whether the message is valid
             error_message (str): Error message if invalid; None if valid
-    
+
     Examples:
     >>> validate_metar("METAR ZBAA 311400Z 01002MPS CAVOK 14/12 Q1009 NOSIG=")
     (True, None)
@@ -86,76 +86,119 @@ def validate_metar(text, strict_mode=False):
     """
     if not text or not isinstance(text, str):
         return False, "Empty or invalid input"
-    
+
     # Remove possible trailing equals sign
     text_clean = text.rstrip("=").strip()
-    
+
     # Check for line breaks (should be single line)
-    if '\n' in text_clean or '\r' in text_clean:
+    if "\n" in text_clean or "\r" in text_clean:
         return False, "Contains line breaks (should be single line)"
-    
+
     # Check for MK spelling error (should be RMK)
-    if re.search(r'\sMK\s', text_clean):
+    if re.search(r"\sMK\s", text_clean):
         return False, "Spelling error: MK (should be RMK)"
-    
+
+    # Check for isolated single digit at the end (before final cleanup)
+    # e.g. "NOSIG 9 =" or "Q1017 3 ="
+    # This check must be done before TREND separation
+    parts_preliminary = text_clean.split()
+    if len(parts_preliminary) >= 1:
+        last_preliminary = parts_preliminary[-1]
+        if re.match(r"^\d$", last_preliminary):
+            return False, f"Isolated digit at ending: {last_preliminary}"
+
     # Check if there is RMK remarks section
     # IMPORTANT: RMK must come AFTER TREND section, not before
-    has_rmk = 'RMK' in text_clean
+    has_rmk = "RMK" in text_clean
     if has_rmk:
         # Separate content before and after RMK
-        parts_split = text_clean.split('RMK', 1)
+        parts_split = text_clean.split("RMK", 1)
         main_part = parts_split[0].strip()
         rmk_part = parts_split[1].strip() if len(parts_split) > 1 else ""
-        
+
         # In strict mode, RMK section is not allowed
         if strict_mode:
             return False, "RMK remarks section not allowed in strict mode"
-        
+
         # Check if TREND keywords (BECMG/TEMPO) appear in RMK section
         # This is a position error - TREND must come before RMK
-        for keyword in ['BECMG', 'TEMPO']:
+        for keyword in ["BECMG", "TEMPO"]:
             if keyword in rmk_part:
-                return False, f"TREND keyword {keyword} found in RMK section (should be before RMK)"
-        
+                return (
+                    False,
+                    f"TREND keyword {keyword} found in RMK section (should be before RMK)",
+                )
+
         # RMK is free text remarks - no other content validation
         # Just keep it as is for downstream processing
     else:
         main_part = text_clean
-    
+
     # Check main part for invalid special characters (allowed: letters, numbers, space, /, +, -)
-    invalid_chars = re.findall(r'[^A-Za-z0-9\s/+\-]', main_part)
+    invalid_chars = re.findall(r"[^A-Za-z0-9\s/+\-]", main_part)
     if invalid_chars:
         return False, f"Contains invalid characters: {set(invalid_chars)}"
-    
+
     # Check common spelling errors (use word boundaries to avoid false positives)
-    if re.search(r'\bEMPO\b', main_part):  # Should be TEMPO
+    if re.search(r"\bEMPO\b", main_part):  # Should be TEMPO
         return False, "Spelling error: EMPO (should be TEMPO)"
-    if re.search(r'\bTRMPO\b', main_part):  # Should be TEMPO
+    if re.search(r"\bTRMPO\b", main_part):  # Should be TEMPO
         return False, "Spelling error: TRMPO (should be TEMPO)"
-    if re.search(r'\bECMG\b', main_part):  # Should be BECMG
+    if re.search(r"\bECMG\b", main_part):  # Should be BECMG
         return False, "Spelling error: ECMG (should be BECMG)"
-    if re.search(r'\bBCECMG\b', main_part):  # Should be BECMG
+    if re.search(r"\bBCECMG\b", main_part):  # Should be BECMG
         return False, "Spelling error: BCECMG (should be BECMG)"
-    
+
+    # Check for double letter errors in NOSIG
+    if re.search(r"\bNNOSIG\b", main_part):  # Should be NOSIG
+        return False, "Spelling error: NNOSIG (should be NOSIG)"
+    if re.search(r"\bNOSSIG\b", main_part):  # Should be NOSIG
+        return False, "Spelling error: NOSSIG (should be NOSIG)"
+
+    # Check for NOSIG spelling variations
+    if re.search(r"\bNOAISIG\b", main_part):  # NOAI instead of NOSI
+        return False, "Spelling error: NOAISIG (should be NOSIG)"
+    if re.search(r"\bNOSZ\b", main_part):  # NOSZ instead of NOSIG
+        return False, "Spelling error: NOSZ (should be NOSIG)"
+
     # Check for various BECMG spelling errors
     becmg_errors = [
-        'BCNG', 'BECNG', 'BCEMG', 'BECML', 'BECMFG', 'BECMGG', 'BECMGA', 'BGECMG', 
-        'BECGG', 'BEEMG', 'BEMG', 'MECMG', 'BECMF', 'BECMGM'
+        "BCNG",
+        "BECNG",
+        "BCEMG",
+        "BECML",
+        "BECMFG",
+        "BECMGG",
+        "BECMGA",
+        "BGECMG",
+        "BECGG",
+        "BEEMG",
+        "BEMG",
+        "MECMG",
+        "BECMF",
+        "BECMGM",
     ]
     for error in becmg_errors:
-        if re.search(r'\b' + error + r'\b', main_part):
+        if re.search(r"\b" + error + r"\b", main_part):
             return False, f"Spelling error: {error} (should be BECMG)"
-    
+
+    # Check for BECMG/TEMPO stuck with time indicators
+    # BECMGTL0130, TEMPOFM0500, etc.
+    if re.search(r"\bBECMG(FM|TL|AT)\d{4}\b", main_part):
+        return False, "BECMG stuck with time indicator (missing space)"
+    if re.search(r"\bTEMPO(FM|TL|AT)\d{4}\b", main_part):
+        return False, "TEMPO stuck with time indicator (missing space)"
+
     # Check for placeholders
-    if re.search(r'Q{5,}', main_part):  # QQQQQQQQ...
+    if re.search(r"Q{5,}", main_part):  # QQQQQQQQ...
         return False, "Contains placeholder (repeated Q)"
-    
+
     # Separate TREND section (NOSIG/BECMG/TEMPO) from main observation
     # TREND is at the end and contains change forecasts
-    trend_keywords = ['NOSIG', 'BECMG', 'TEMPO']
+    trend_keywords = ["NOSIG", "BECMG", "TEMPO"]
     has_trend = False
     trend_start_idx = -1
-    
+
     for keyword in trend_keywords:
         if keyword in main_part:
             has_trend = True
@@ -167,34 +210,34 @@ def validate_metar(text, strict_mode=False):
                     break
             if trend_start_idx > 0:
                 break
-    
+
     # Separate main observation and trend parts
     if has_trend and trend_start_idx > 0:
         parts_all = main_part.split()
         main_obs_parts = parts_all[:trend_start_idx]
         trend_parts = parts_all[trend_start_idx:]
-        main_obs_text = ' '.join(main_obs_parts)
+        main_obs_text = " ".join(main_obs_parts)
     else:
         main_obs_text = main_part
         trend_parts = []
-    
+
     # Check minimum message length
     if len(main_obs_text) < 20:
         return False, "METAR text too short"
-    
+
     parts = main_obs_text.split()
     if len(parts) < 4:
         return False, "Missing essential fields"
-    
+
     # Locate field indices
     idx = 0
-    
+
     # 1. Check report type (first field should be METAR/SPECI/TAF)
     # If first field looks like ICAO code, report type is missing
-    icao_pattern = re.compile(r'^[A-Z]{4}$')
+    icao_pattern = re.compile(r"^[A-Z]{4}$")
     if icao_pattern.match(parts[idx]):
         return False, f"Missing report type (METAR/SPECI): starts with {parts[idx]}"
-    
+
     if parts[idx] in ["METAR", "SPECI", "TAF"]:
         idx += 1
         # Check for COR
@@ -202,54 +245,73 @@ def validate_metar(text, strict_mode=False):
             idx += 1
     else:
         return False, f"Invalid or missing report type: {parts[idx]}"
-    
+
     # 2. Check ICAO code (must be 4 uppercase letters)
     if idx >= len(parts):
         return False, "Missing ICAO code"
-    
+
     if not icao_pattern.match(parts[idx]):
         return False, f"Invalid ICAO code format: {parts[idx]}"
     idx += 1
-    
+
     # 3. Check time group (must be 6 digits + Z, day part cannot exceed 31)
     if idx >= len(parts):
         return False, "Missing time group"
-    
-    time_pattern = re.compile(r'^(\d{2})(\d{4})Z$')
+
+    time_pattern = re.compile(r"^(\d{2})(\d{4})Z$")
     time_match = time_pattern.match(parts[idx])
     if not time_match:
         return False, f"Invalid time format: {parts[idx]}"
-    
+
     day = int(time_match.group(1))
     if day < 1 or day > 31:
         return False, f"Invalid day in time group: {day}"
     idx += 1
-    
+
     # If it's a NIL report, we're done here
     if idx < len(parts) and parts[idx] == "NIL":
         return True, None
-    
+
     # Check for AUTO
     if idx < len(parts) and parts[idx] == "AUTO":
         idx += 1
-    
+
     # 4. Check wind group (may exist, check format)
     if idx < len(parts):
-        wind_pattern = re.compile(r'^((\d{3}|VRB)\d{2}(G\d{2})?(MPS|KT)|/{5}(MPS|KT))$')
+        wind_pattern = re.compile(r"^((\d{3}|VRB)\d{2}(G\d{2})?(MPS|KT)|/{5}(MPS|KT))$")
         # Check for wind-like fields with incorrect format
-        wind_like_pattern = re.compile(r'^\d{1,5}(MPS|KT|PS)$')
+        wind_like_pattern = re.compile(r"^\d{1,5}(MPS|KT|PS)$")
         # Check for spacing errors like "12001MPSH4000" or "30007MPSG13"
-        wind_spacing_error = re.compile(r'^\d{5}MPS[A-Z]|\d{5}MPSG\d+$')
+        wind_spacing_error = re.compile(r"^\d{5}MPS[A-Z]|\d{5}MPSG\d+$")
         # Check for wind variation concatenation errors like "18003MPSV220"
-        wind_var_error = re.compile(r'^\d{5}MPSV\d+$')
-        
+        wind_var_error = re.compile(r"^\d{5}MPSV\d+$")
+        # Check for invalid wind patterns like 1800C, 41MPS (wrong number of digits)
+        invalid_wind_pattern = re.compile(r"^\d{4}[A-Z]$|^\d{1,2}(MPS|KT)$")
+        # Check for incomplete gust: 000G, 12003G, etc. (missing gust value)
+        incomplete_gust_pattern = re.compile(r"^\d{3,5}G$")
+        # Check for wrong wind units: UKT, M, etc.
+        wrong_unit_pattern = re.compile(r"^[A-Z]{2,4}$")  # 2-4 letters, not valid unit
+
         if wind_pattern.match(parts[idx]):
             idx += 1
             # Check for possible wind direction variation
             if idx < len(parts):
-                wind_var_pattern = re.compile(r'^\d{3}V\d{3}$')
+                wind_var_pattern = re.compile(r"^\d{3}V\d{3}$")
                 if wind_var_pattern.match(parts[idx]):
                     idx += 1
+        elif invalid_wind_pattern.match(parts[idx]):
+            # Invalid wind format: 4 digits + letter, or 1-2 digits + unit
+            return False, f"Invalid wind format: {parts[idx]}"
+        elif incomplete_gust_pattern.match(parts[idx]):
+            # Incomplete gust: has G but no gust value
+            # Check if next part is a wrong unit
+            if idx + 1 < len(parts) and wrong_unit_pattern.match(parts[idx + 1]):
+                return (
+                    False,
+                    f"Invalid wind format: {parts[idx]} {parts[idx + 1]} (incomplete gust with wrong unit)",
+                )
+            else:
+                return False, f"Invalid wind format: {parts[idx]} (incomplete gust)"
         elif wind_like_pattern.match(parts[idx]):
             # Looks like wind group but format is wrong
             return False, f"Invalid wind format: {parts[idx]}"
@@ -259,22 +321,26 @@ def validate_metar(text, strict_mode=False):
         elif wind_var_error.match(parts[idx]):
             # Wind variation information concatenated
             return False, f"Wind variation spacing error: {parts[idx]}"
-    
+        # Check if current part looks like incomplete wind unit
+        elif re.match(r"^\d{5}M$", parts[idx]):
+            # e.g., 01006M (missing PS from MPS)
+            return False, f"Invalid wind format: {parts[idx]} (incomplete unit)"
+
     # 5. Check pressure group (if exists, must be Q or A followed by 4 digits or ////)
     # Search for pressure group anywhere in the message
     qnh_found = False
-    qnh_pattern = re.compile(r'^[AQ]\d{4}$')
-    qnh_missing_pattern = re.compile(r'^[AQ]/{4}$')  # Q//// or A//// means missing data
-    
+    qnh_pattern = re.compile(r"^[AQ]\d{4}$")
+    qnh_missing_pattern = re.compile(r"^[AQ]/{4}$")  # Q//// or A//// means missing data
+
     # Known keywords that start with A or Q and are not QNH
-    known_keywords = ['AUTO', 'AT']  # AT is for TREND time indicator like AT1600
-    
+    known_keywords = ["AUTO", "AT"]  # AT is for TREND time indicator like AT1600
+
     for part in parts:
-        if part.startswith('Q') or part.startswith('A'):
+        if part.startswith("Q") or part.startswith("A"):
             # Skip known keywords
-            if part in known_keywords or part.startswith('AT') and len(part) == 6:
+            if part in known_keywords or part.startswith("AT") and len(part) == 6:
                 continue
-            
+
             if qnh_pattern.match(part):
                 qnh_found = True
                 break
@@ -285,128 +351,259 @@ def validate_metar(text, strict_mode=False):
             else:
                 # If starts with Q or A but format is wrong, this is an error
                 return False, f"Invalid QNH format: {part}"
-    
+
     # 6. Check for abnormal character combinations at end
     # End should be NOSIG, TEMPO, BECMG or other valid fields
     last_part = parts[-1]
-    
+
     # If last field is a valid ending field, skip check
-    valid_endings = ['NOSIG', 'TEMPO', 'BECMG', 'NIL']
-    
-    # Check for spacing errors like "NOSI G"
+    valid_endings = ["NOSIG", "TEMPO", "BECMG", "NIL"]
+
+    # Check for spacing errors like "NOSI G" and spelling errors like "NOAI SIG"
     if len(parts) >= 2:
         last_two_combined = parts[-2] + parts[-1]
-        if last_two_combined in ['NOSIG', 'TEMPO', 'BECMG']:
+
+        # Direct match for valid keywords that were split
+        if last_two_combined in ["NOSIG", "TEMPO", "BECMG"]:
             return False, f"Invalid spacing in ending: {parts[-2]} {parts[-1]}"
-    
+
+        # Check for NOSIG spelling variations
+        # NOAI SIG, NOSI G, NO SIG, etc.
+        nosig_like_patterns = [
+            "NOAISIG",
+            "NOAI SIG",  # NOAI instead of NOSI
+            "NOIG",
+            "NOSI G",
+            "NO SIG",
+        ]
+
+        combined_with_space = parts[-2] + " " + parts[-1]
+        if (
+            last_two_combined in nosig_like_patterns
+            or combined_with_space in nosig_like_patterns
+        ):
+            return (
+                False,
+                f"Invalid spacing/spelling in ending: {parts[-2]} {parts[-1]} (should be NOSIG)",
+            )
+
     # Check for single letter ending (without RMK, this is usually an error)
     # e.g. "Q1003 N=" or "FEW015 S="
-    if not has_rmk and re.match(r'^[A-Z]$', last_part):
+    if not has_rmk and re.match(r"^[A-Z]$", last_part):
         return False, f"Invalid single letter ending: {last_part}"
-    
+
     if last_part not in valid_endings:
         # Check if last field contains abnormal combinations
         invalid_endings = [
-            r'^NOSIT$',  # NOSIG spelling error
-            r'^NOSI$',  # NOSI (NOSIG missing G)
-            r'^OSIG$',   # Missing N
-            r'^DUPE$',   # Duplicate report marker, should not appear
+            r"^NOSIT$",  # NOSIG spelling error
+            r"^NOSI$",  # NOSI (NOSIG missing G)
+            r"^OSIG$",  # Missing N
+            r"^DUPE$",  # Duplicate report marker, should not appear
         ]
-        
+
         for pattern in invalid_endings:
             if re.search(pattern, last_part):
                 return False, f"Invalid ending: {last_part}"
-    
-    # 7. Check for isolated single digits or letters (only in main observation, not in TREND)
+
+    # 7. Check for suspicious short fields (1-2 characters)
+    # Pattern: single digit + single letter (e.g., 0K, 1A, 9Z)
+    for part in parts:
+        # Check for digit+letter pattern (usually invalid)
+        if re.match(r"^\d[A-Z]$", part):
+            # Exception: temperature like M2 is valid in some contexts
+            # But 0K, 1A, etc. are suspicious
+            return False, f"Suspicious field: {part}"
+
+        # Check for temperature with + prefix (invalid format)
+        # Temperature should be M?\d{2}/M?\d{2}, not +\d+/...
+        if "/" in part and part.startswith("+"):
+            return (
+                False,
+                f"Invalid temperature format: {part} (+ not allowed in temperature)",
+            )
+
+        # Check for temperature with insufficient digits (must be 2 digits each side)
+        # Valid: 20/10, M04/M10, 02/M12
+        # Invalid: 0/10, 5/M3
+        if "/" in part and not part.startswith("+"):
+            temp_pattern = re.compile(r"^M?\d{2}/M?\d{2}$")
+            if not temp_pattern.match(part):
+                # Check if it looks like temperature but format is wrong
+                if re.match(r"^M?\d+/M?\d+$", part):
+                    return (
+                        False,
+                        f"Invalid temperature format: {part} (must be 2 digits each side)",
+                    )
+
+        # Check for invalid visibility format
+        # Valid: 4 digits (9999, 0200), or digit+SM (10SM)
+        # Invalid: 5+ digits followed by letter(s) like 60008P
+        # But exclude: time group (6 digits + Z), wind (5 digits + MPS/KT)
+        if re.match(r"^\d{5,}[A-Z]+$", part):
+            # Exclude time group
+            if re.match(r"^\d{6}Z$", part):
+                continue
+            # Exclude wind group
+            if re.match(r"^\d{5}(MPS|KT)$", part):
+                continue
+            # This is suspicious
+            return False, f"Invalid visibility format: {part}"
+
+    # 7. Check if message contains at least one basic observation element
+    # A valid METAR should have at least one of: visibility, weather, cloud, temperature, QNH
+    # After METAR/SPECI, ICAO, time, and possibly wind, there should be more fields
+    # If only 4 fields (METAR ICAO TIME WIND), it's too short
+    if len(parts) <= 4:
+        return False, "Missing observation data (visibility/cloud/temperature/QNH)"
+
+    # Check if it has at least one valid observation field
+    has_observation = False
+    for part in parts[3:]:  # Skip METAR, ICAO, TIME
+        if (
+            re.match(r"^\d{4}$", part)  # Visibility
+            or re.match(r"^(FEW|SCT|BKN|OVC)\d{3}", part)  # Cloud
+            or part in ["SKC", "NSC", "CAVOK", "CLR"]  # Sky condition
+            or re.match(r"^M?\d{2}/M?\d{2}$", part)  # Temperature
+            or re.match(r"^[AQ]\d{4}$", part)
+        ):  # QNH
+            has_observation = True
+            break
+
+    if not has_observation:
+        return False, "Missing observation data (visibility/cloud/temperature/QNH)"
+
+    # 8. Check for isolated single digits or letters (only in main observation, not in TREND)
     for i, part in enumerate(parts):
         # Skip known valid single letter/digit cases
-        if part in ['M', 'P', 'U', 'D', 'N']:  # These are valid in certain contexts
+        if part in ["M", "P", "U", "D", "N"]:  # These are valid in certain contexts
             # Check context, if they are isolated (neither prev nor next are appropriate), report error
             if i > 0 and i < len(parts) - 1:
                 # Check if in reasonable context
-                prev_part = parts[i-1]
-                next_part = parts[i+1]
+                prev_part = parts[i - 1]
+                next_part = parts[i + 1]
                 # If neither prev nor next is digit or RVR related, may be abnormal
-                if not (prev_part.startswith('R') or next_part.isdigit()):
+                if not (prev_part.startswith("R") or next_part.isdigit()):
                     return False, f"Isolated character: {part}"
-        
+
         # Check for isolated single digit
         if part.isdigit() and len(part) == 1:
             return False, f"Isolated digit: {part}"
-    
+
     # 8. Check for obviously wrong fields in main observation (not in TREND)
     # TREND may contain time indicators like TL1440, FM1520, AT1600 which are valid
     for part in parts[idx:]:
         # Skip known valid formats
-        if (qnh_pattern.match(part) or 
-            re.match(r'^\d{4}$', part) or  # 4 digits (visibility)
-            re.match(r'^[A-Z]+$', part) or
-            re.match(r'^M?\d+/M?\d+$', part) or  # Temperature/dewpoint
-            re.match(r'^R\d+', part) or  # RVR
-            re.match(r'^\d{3}V\d{3}$', part) or  # Wind direction variation
-            re.match(r'^(FEW|SCT|BKN|OVC|SKC|NSC)', part) or  # Cloud group
-            re.match(r'^VV\d{3}$', part) or  # Vertical visibility
-            re.match(r'^[/]+$', part)):  # Slashes (indicate missing data)
+        if (
+            qnh_pattern.match(part)
+            or re.match(r"^\d{4}$", part)  # 4 digits (visibility)
+            or re.match(r"^[A-Z]+$", part)
+            or re.match(r"^M?\d+/M?\d+$", part)  # Temperature/dewpoint
+            or re.match(r"^R\d+", part)  # RVR
+            or re.match(r"^\d{3}V\d{3}$", part)  # Wind direction variation
+            or re.match(
+                r"^(FEW|SCT|BKN|OVC)\d{3}(?:TCU|CB)?$", part
+            )  # Cloud group with correct format (3 digits)
+            or part in ["SKC", "NSC", "CAVOK"]  # Sky clear formats
+            or re.match(r"^VV\d{3}$", part)  # Vertical visibility
+            or re.match(r"^[/]+$", part)
+        ):  # Slashes (indicate missing data)
             continue
-        
+
         # Check for isolated 2 or 3 digit numbers (not visibility or other valid formats)
-        if re.match(r'^\d{2,3}$', part):
+        if re.match(r"^\d{2,3}$", part):
             # Check if in reasonable context
             # If not preceded by R (RVR), may be abnormal
             return False, f"Isolated numeric value: {part}"
-        
+
         # Check for FM/TL/AT time indicators without BECMG/TEMPO
         # These indicate TREND section which must have BECMG or TEMPO first
-        if re.match(r'^(FM|TL|AT)\d{4}$', part):
+        if re.match(r"^(FM|TL|AT)\d{4}$", part):
             # Check if there's a BECMG spelling error in the previous parts
             # Common BECMG spelling errors
             becmg_error_patterns = [
-                'BCNG', 'BECNG', 'BCEMG', 'BECML', 'BECMFG', 'BECMGG', 'BECMGA', 'BGECMG', 
-                'BECGG', 'BEEMG', 'BEMG', 'MECMG', 'BECMF', 'BECMGM', 'ECMG', 'BCECMG'
+                "BCNG",
+                "BECNG",
+                "BCEMG",
+                "BECML",
+                "BECMFG",
+                "BECMGG",
+                "BECMGA",
+                "BGECMG",
+                "BECGG",
+                "BEEMG",
+                "BEMG",
+                "MECMG",
+                "BECMF",
+                "BECMGM",
+                "ECMG",
+                "BCECMG",
             ]
             # Check last few parts for BECMG spelling errors
             check_range = min(5, len(parts))
             for j in range(max(0, i - check_range), i):
                 if parts[j] in becmg_error_patterns:
                     return False, f"Spelling error: {parts[j]} (should be BECMG)"
-            
+
             # If no spelling error found, report time indicator error
             return False, f"Time indicator {part[:2]} must follow BECMG or TEMPO"
-        
-        # Check for wrong cloud group format (e.g. KN026 should be BKN026)
-        cloud_like_pattern = re.compile(r'^[A-Z]{2,3}\d{3}')
+
+        # Check for wrong cloud group format (e.g. KN026 should be BKN026, BKN0 height too short)
+        cloud_like_pattern = re.compile(r"^[A-Z]{2,3}\d{1,3}")
         if cloud_like_pattern.match(part):
-            valid_cloud_types = ['FEW', 'SCT', 'BKN', 'OVC', 'SKC', 'NSC', 'VV']
-            if not any(part.startswith(ct) for ct in valid_cloud_types):
+            valid_cloud_types = ["FEW", "SCT", "BKN", "OVC", "SKC", "NSC", "VV"]
+            # Check if starts with valid type
+            if any(part.startswith(ct) for ct in valid_cloud_types):
+                # Check if height is 3 digits (except SKC/NSC which don't have height)
+                if part not in ["SKC", "NSC"]:
+                    # Extract digits after cloud type
+                    for ct in valid_cloud_types:
+                        if part.startswith(ct):
+                            remaining = part[len(ct) :]
+                            # Check if remaining part has digits
+                            digits_match = re.match(r"^(\d+)", remaining)
+                            if digits_match:
+                                digits = digits_match.group(1)
+                                if len(digits) != 3:
+                                    return (
+                                        False,
+                                        f"Invalid cloud height: {part} (height must be 3 digits)",
+                                    )
+                            break
+            else:
                 return False, f"Invalid cloud group format: {part}"
-        
+
+        # Check for known invalid fields
+        invalid_fields = ["DUPE", "TEST", "ERROR", "INVALID", "DELETE", "CANCEL"]
+        if part in invalid_fields:
+            return False, f"Invalid field: {part}"
+
         # Check for obviously abnormal mixed fields
         # Examples: OCCGCRY, QUXQQ, DEPPQMPS, etc.
         # But exclude valid weather phenomenon codes (can be long, e.g. -FZDZSN, -TSRASN)
-        if len(part) > 6 and re.search(r'[A-Z]{6,}', part):
+        if len(part) > 6 and re.search(r"[A-Z]{6,}", part):
             # Check if it's a known valid field
-            known_fields = ['NOSIG', 'CAVOK', 'BECMG', 'TEMPO']
+            known_fields = ["NOSIG", "CAVOK", "BECMG", "TEMPO"]
             if part in known_fields or any(kf in part for kf in known_fields):
                 continue
-            
+
             # Check if it's a weather phenomenon code
             # Pattern: [+-]?(VC|RE)?(MI|BC|PR|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS)+(BR|FG|FU|VA|DU|SA|HZ)?(PO|SQ|FC|SS|DS)?
             weather_pattern = re.compile(
-                r'^[+-]?'  # Intensity
-                r'(VC|RE)?'  # Vicinity/Recent
-                r'(MI|BC|PR|DR|BL|SH|TS|FZ)?'  # Descriptor
-                r'(DZ|RA|SN|SG|IC|PL|GR|GS)+'  # Precipitation (one or more)
-                r'(BR|FG|FU|VA|DU|SA|HZ)?'  # Obscuration
-                r'(PO|SQ|FC|SS|DS)?$'  # Other
+                r"^[+-]?"  # Intensity
+                r"(VC|RE)?"  # Vicinity/Recent
+                r"(MI|BC|PR|DR|BL|SH|TS|FZ)?"  # Descriptor
+                r"(DZ|RA|SN|SG|IC|PL|GR|GS)+"  # Precipitation (one or more)
+                r"(BR|FG|FU|VA|DU|SA|HZ)?"  # Obscuration
+                r"(PO|SQ|FC|SS|DS)?$"  # Other
             )
-            
+
             if weather_pattern.match(part):
                 continue
-            
+
             # May be abnormal field
-            if not re.match(r'^[A-Z]{4}$', part):  # Not ICAO code
+            if not re.match(r"^[A-Z]{4}$", part):  # Not ICAO code
                 return False, f"Suspicious field: {part}"
-    
+
     # 9. Validate TREND section if present
     if has_trend and trend_parts:
         # Check structure: time indicators (FM/TL/AT) must follow BECMG/TEMPO
@@ -414,51 +611,87 @@ def validate_metar(text, strict_mode=False):
         prev_keyword = None
         for i, part in enumerate(trend_parts):
             # Track change type keywords
-            if part in ['BECMG', 'TEMPO']:
+            if part in ["BECMG", "TEMPO"]:
                 prev_keyword = part
                 continue
-            
+
             # Time indicators must follow a change type keyword
-            if re.match(r'^(FM|TL|AT)\d{4}$', part):
+            if re.match(r"^(FM|TL|AT)\d{4}$", part):
                 if prev_keyword is None:
                     # FM/TL/AT without preceding BECMG/TEMPO is invalid
                     return False, f"Time indicator {part} without BECMG/TEMPO"
                 continue
-            
+
             # NOSIG stands alone, doesn't need validation
-            if part == 'NOSIG':
+            if part == "NOSIG":
                 continue
-            
+
             # Skip valid TREND elements (wind, visibility, weather, clouds, NSW, CAVOK)
-            if (re.match(r'^(VRB|\d{3})\d{2}(G\d{2})?(MPS|KT)$', part) or  # Wind
-                re.match(r'^\d{4}$', part) or  # Visibility
-                re.match(r'^(FEW|SCT|BKN|OVC|SKC|NSC)', part) or  # Clouds
-                part in ['NSW', 'CAVOK'] or  # No significant weather / CAVOK
-                re.match(r'^[+-]?(VC|RE)?(MI|BC|PR|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS)?(BR|FG|FU|VA|DU|SA|HZ)?(PO|SQ|FC|SS|DS)?$', part)):  # Weather
+            if (
+                re.match(r"^(VRB|\d{3})\d{2}(G\d{2})?(MPS|KT)$", part)  # Wind
+                or re.match(r"^\d{4}$", part)  # Visibility
+                or re.match(r"^(FEW|SCT|BKN|OVC|SKC|NSC)", part)  # Clouds
+                or part in ["NSW", "CAVOK"]  # No significant weather / CAVOK
+                or re.match(
+                    r"^[+-]?(VC|RE)?(MI|BC|PR|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS)?(BR|FG|FU|VA|DU|SA|HZ)?(PO|SQ|FC|SS|DS)?$",
+                    part,
+                )
+            ):  # Weather
                 continue
-            
+
             # Prohibited in TREND: RVR, QNH, temperature, wind shear
-            if re.match(r'^R\d{2}', part):  # RVR
+            if re.match(r"^R\d{2}", part):  # RVR
                 return False, f"RVR not allowed in TREND: {part}"
-            if re.match(r'^[AQ]\d{4}$', part):  # QNH
+            if re.match(r"^[AQ]\d{4}$", part):  # QNH
                 return False, f"QNH not allowed in TREND: {part}"
-            if re.match(r'^M?\d{2}/M?\d{2}$', part):  # Temperature/dewpoint
+            if re.match(r"^M?\d{2}/M?\d{2}$", part):  # Temperature/dewpoint
                 return False, f"Temperature not allowed in TREND: {part}"
-            if part.startswith('WS'):  # Wind shear
+            if part.startswith("WS"):  # Wind shear
                 return False, f"Wind shear not allowed in TREND: {part}"
-            if re.match(r'^PROB\d{2}$', part):  # Probability (TAF only)
+            if re.match(r"^PROB\d{2}$", part):  # Probability (TAF only)
                 return False, f"Probability group not allowed in TREND: {part}"
-    
+
+            # Any other field in TREND that doesn't match valid patterns is suspicious
+            # Reject obviously invalid fields (e.g., K, JHHHHH, CHECK, TEXT)
+            # Single letters (except valid abbreviations)
+            if len(part) == 1:
+                return False, f"Suspicious field in TREND: {part}"
+
+            # Long strings of same letter (e.g., JHHHHH, AAAAA)
+            if len(part) >= 5 and len(set(part)) <= 2:
+                return False, f"Suspicious field in TREND: {part}"
+
+            # English words that shouldn't appear (CHECK, TEXT, NEW, ENDING, ADDED, DUPE)
+            suspicious_words = [
+                "CHECK",
+                "TEXT",
+                "NEW",
+                "ENDING",
+                "ADDED",
+                "ERROR",
+                "INVALID",
+                "DUPE",
+                "TEST",
+                "DELETE",
+                "CANCEL",
+            ]
+            if part in suspicious_words:
+                return False, f"Suspicious field in TREND: {part}"
+
+            # Long mixed letter fields (e.g., ZBBBXMXX)
+            if len(part) > 6 and not re.match(r"^\d+$", part):
+                return False, f"Suspicious field in TREND: {part}"
+
     # 10. Check for multiple isolated single letter fields at end (e.g. "TE G")
     # Only check main observation part, not TREND
     if len(parts) >= 2:
-        last_two = ' '.join(parts[-2:])
+        last_two = " ".join(parts[-2:])
         # Check if they are two isolated uppercase letters
-        if re.match(r'^[A-Z]{1,2}\s+[A-Z]{1,2}$', last_two):
+        if re.match(r"^[A-Z]{1,2}\s+[A-Z]{1,2}$", last_two):
             # This may be an abnormal ending
             if parts[-2] not in valid_endings and parts[-1] not in valid_endings:
                 return False, f"Invalid ending: {last_two}"
-    
+
     return True, None
 
 
@@ -554,7 +787,7 @@ def get_weather_description(code):
 
     # Precipitation types that can follow descriptors like SH
     precipitation_types = ["DZ", "RA", "SN", "SG", "IC", "PL", "GR", "GS"]
-    
+
     weather_codes = {
         "DZ": "Drizzle",
         "RA": "Rain",
@@ -586,36 +819,58 @@ def get_weather_description(code):
         "PR": "Partial",
         "DR": "Low Drifting",
         "FZ": "Freezing",
-        "VC": "In the Vicinity",
-        "RE": "Recent",
+        "VC": "in the Vicinity",  # Will be appended at the end
+        "RE": "Recent",  # Will be prepended at the beginning
     }
+
+    # Check for vicinity (VC) or recent (RE) prefix
+    # These should be placed at specific positions in the final description
+    vicinity_suffix = ""
+    recent_prefix = ""
+
+    if code.startswith("VC"):
+        vicinity_suffix = " in the Vicinity"
+        code = code[2:]
+    elif code.startswith("RE"):
+        recent_prefix = "Recent "
+        code = code[2:]
 
     description = ""
     remaining_code = code
     while len(remaining_code) > 0:
         matched = False
         for key in weather_codes.keys():
+            # Skip VC and RE as they are handled separately
+            if key in ["VC", "RE"]:
+                continue
+
             if remaining_code.startswith(key):
                 # Special handling for SH: add "of" only if followed by precipitation
                 if key == "SH":
                     # Check if next part is a precipitation type
-                    rest_of_code = remaining_code[len(key):]
-                    has_precipitation = any(rest_of_code.startswith(pt) for pt in precipitation_types)
+                    rest_of_code = remaining_code[len(key) :]
+                    has_precipitation = any(
+                        rest_of_code.startswith(pt) for pt in precipitation_types
+                    )
                     if has_precipitation:
                         description += "Showers of "
                     else:
                         description += "Showers "
                 else:
                     description += weather_codes[key] + " "
-                remaining_code = remaining_code[len(key):]
+                remaining_code = remaining_code[len(key) :]
                 matched = True
                 break
-        
+
         # If no match found, skip this character to avoid infinite loop
         if not matched:
             remaining_code = remaining_code[1:]
 
-    return intensity + description.strip()
+    # Assemble final description: recent_prefix + intensity + description + vicinity_suffix
+    final_description = (
+        recent_prefix + intensity + description.strip() + vicinity_suffix
+    )
+    return final_description.strip()
 
 
 def parse_text(text, year, month):
